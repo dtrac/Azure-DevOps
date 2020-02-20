@@ -16,5 +16,7 @@ steps:
 - script: echo Hello, world - on success!
   condition: succeeded()
 
+- powershell: throw 
+
 - script: echo Hello, world - on failure!
   condition: failed()
