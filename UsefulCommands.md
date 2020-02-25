@@ -1,4 +1,6 @@
-Useful Commands
+# Useful Commands
+
+## az commands:
 
 ```
 az account list-locations \
@@ -31,3 +33,13 @@ canadaeast          Canada East
 uksouth             UK South
 ...
   ```
+
+```
+az webapp list --resource-group my-rg --output table
+```
+
+```
+az group list \
+  --query "[?contains(@.name, 'my-rg')].{name: name}" \
+  --output tsv
+```
