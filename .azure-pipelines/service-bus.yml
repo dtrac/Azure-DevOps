@@ -1,0 +1,67 @@
+trigger:
+- main
+
+variables:
+  - group: auth
+
+jobs:
+- job: ServiceBusJob
+  displayName: 'Send message to ServiceBus and wait for queue to be empty'
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - bash: |
+
+      # Login to Azure using Service Principal credentials
+      az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+      az account set --subscription "8028ce6e-7b64-4530-bb6e-2074b6d9f8f8"
+
+      # Get the message from the command line argument
+      messagePayload="Hello world!"
+      # Construct the request URI
+      requestUri="https://cattletest.servicebus.windows.net/msg/messages"
+      # Send the message using az rest command
+      az rest --method post --uri "$requestUri" --body "$messagePayload" --resource "https://servicebus.azure.net"
+
+    displayName: 'Send message to ServiceBus'
+    env:
+      AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)  # Environment variable for Service Principal
+      AZURE_TENANT_ID: $(AZURE_TENANT_ID)  # Environment variable for Tenant ID
+      AZURE_CLIENT_SECRET: $(AZURE_TENANT_SECRET)  # Environment variable for Client Secret
+
+  - bash: |
+      # Login to Azure using Service Principal credentials
+      az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+      az account set --subscription "8028ce6e-7b64-4530-bb6e-2074b6d9f8f8"
+
+      az servicebus queue show \
+          --name msg \
+          --resource-group dantcsetest \
+          --namespace-name cattletest
+
+      # Wait for the ServiceBus queue to be empty
+      while true; do
+        message_count=$(az servicebus queue show \
+          --name msg \
+          --resource-group dantcsetest \
+          --namespace-name cattletest \
+          --query "messageCount" -o tsv)
+        
+        if [ "$message_count" -eq 0 ]; then
+          echo "Queue is empty. Proceeding with final task."
+          break
+        fi
+        echo "Queue still has $message_count messages. Waiting..."
+        sleep 10
+      done
+    displayName: 'Wait for ServiceBus Queue to be empty'
+    env:
+      AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)  # Environment variable for Service Principal
+      AZURE_TENANT_ID: $(AZURE_TENANT_ID)  # Environment variable for Tenant ID
+      AZURE_CLIENT_SECRET: $(AZURE_TENANT_SECRET)  # Environment variable for Client Secret
+
+  - bash: |
+      # Final task after queue is empty
+      echo "Final task executed after queue was emptied."
+    displayName: 'Final Task - Echo Completion Message'
